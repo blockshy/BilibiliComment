@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Configuration status="INFO">
+    <Appenders>
+        <!-- 控制台输出 -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"/>
+        </Console>
+
+        <!-- 文件输出，每天一个日志文件，并放在以日期命名的子文件夹中 -->
+        <RollingFile name="InfoLogFile"
+                     fileName="logs/info.log"
+                     filePattern="logs/info-%d{yyyy-MM-dd}.log">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="10MB" />
+            </Policies>
+            <DefaultRolloverStrategy max="30"/> <!-- 保留最新的 30 个日志文件 -->
+        </RollingFile>
+
+        <!-- 文件输出，每天一个日志文件，并放在以日期命名的子文件夹中 -->
+        <RollingFile name="ThreadLogFile"
+                     fileName="logs/thread.log"
+                     filePattern="logs/thread-%d{yyyy-MM-dd}.log">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="10MB" />
+            </Policies>
+            <DefaultRolloverStrategy max="30"/> <!-- 保留最新的 30 个日志文件 -->
+        </RollingFile>
+
+        <!-- 文件输出，每天一个日志文件，并放在以日期命名的子文件夹中 -->
+        <RollingFile name="ErrorLogFile"
+                     fileName="logs/error.log"
+                     filePattern="logs/error-%d{yyyy-MM-dd}.log">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="10MB" />
+            </Policies>
+            <DefaultRolloverStrategy max="30"/> <!-- 保留最新的 30 个日志文件 -->
+        </RollingFile>
+
+        <!-- 异步处理日志 -->
+        <Async name="AsyncAppenderInfo">
+            <AppenderRef ref="InfoLogFile"/>
+        </Async>
+        <Async name="AsyncAppenderThread">
+            <AppenderRef ref="ThreadLogFile"/>
+        </Async>
+        <Async name="AsyncAppenderError">
+            <AppenderRef ref="ErrorLogFile"/>
+        </Async>
+    </Appenders>
+
+    <Loggers>
+        <!-- 记录器配置 -->
+        <Logger name="ThreadLogFile" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncAppenderThread"/>
+        </Logger>
+
+        <!-- 记录器配置 -->
+        <Logger name="InfoLogFile" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AsyncAppenderInfo"/>
+        </Logger>
+
+        <!-- 只处理 error 级别日志的根记录器 -->
+        <Root level="ERROR">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AsyncAppenderError"/>
+        </Root>
+    </Loggers>
+</Configuration>
+
+<!--<configuration name="defaultConfiguration" status="warn" strict="true" monitorInterval="5">
+    <properties>
+        <property name="patternlayout">
+            %date{yyyy-MM-dd HH:mm:ss.SSS} %level [%thread][%logger:%M:%L] - %msg%n%throwable{full}
+        </property>
+        <property name="log_home">./logs/</property>
+        <property name="debug_name">debug</property>
+        <property name="info_name">info</property>
+        <property name="warn_name">warn</property>
+        <property name="error_name">error</property>
+
+        <property name="debug">${log_home}/${debug_name}.log</property>
+        <property name="info">${log_home}/${info_name}.log</property>
+        <property name="warn">${log_home}/${warn_name}.log</property>
+        <property name="error">${log_home}/${error_name}.log</property>
+
+        <property name="fp_debug">${log_home}/${debug_name}/debug-%d{yyyy-MM-dd}-%i.log</property>
+        <property name="fp_info">${log_home}/${info_name}/info-%d{yyyy-MM-dd}-%i.log</property>
+        <property name="fp_warn">${log_home}/${warn_name}/warn-%d{yyyy-MM-dd}-%i.log</property>
+        <property name="fp_error">${log_home}/${error_name}/error-%d{yyyy-MM-dd}-%i.log</property>
+    </properties>
+
+    <appenders>
+        <appender name="CONSOLE" type="Console" target="SYSTEM_OUT">
+            <layout type="PatternLayout" pattern="${patternlayout}"/>
+        </appender>
+
+        <RollingRandomAccessFile name="DEBUG" fileName="${debug}" filePattern="${fp_debug}">
+            <PatternLayout
+                    pattern='{"data":"%date{yyyy-MM-dd HH:mm:ss.SSS}","tag":"%level;%logger;%M;%L","msg":%msg}%n'/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="20 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="100"/>
+            <Filters>
+                <ThresholdFilter level="error" onMatch="DENY" onMismatch="NEUTRAL"/>
+                <ThresholdFilter level="debug" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+        </RollingRandomAccessFile>
+
+        <RollingRandomAccessFile name="INFO" fileName="${info}" filePattern="${fp_info}">
+            <PatternLayout
+                    pattern='{"data":"%date{yyyy-MM-dd HH:mm:ss.SSS}","tag":"%level;%logger;%M;%L","msg":%msg}%n'/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="20 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="100"/>
+            <Filters>
+                <ThresholdFilter level="warn" onMatch="DENY" onMismatch="NEUTRAL"/>
+                <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+        </RollingRandomAccessFile>
+
+        <RollingRandomAccessFile name="WARN" fileName="${warn}" filePattern="${fp_warn}">
+            <PatternLayout
+                    pattern='{"data":"%date{yyyy-MM-dd HH:mm:ss.SSS}","tag":"%level;%logger;%M;%L","msg":%msg}%n'/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="20 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="100"/>
+            <Filters>
+                <ThresholdFilter level="error" onMatch="DENY" onMismatch="NEUTRAL"/>
+                <ThresholdFilter level="warn" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+        </RollingRandomAccessFile>
+
+        <RollingRandomAccessFile name="ERROR" fileName="${error}" filePattern="${fp_error}">
+            <PatternLayout
+                    pattern='{"data":"%date{yyyy-MM-dd HH:mm:ss.SSS}","tag":"%level;%logger;%M;%L","msg":%msg}%n'/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="20 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="100"/>
+            <Filters>
+                <ThresholdFilter level="error" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+        </RollingRandomAccessFile>
+    </appenders>
+    <loggers>
+
+        &lt;!&ndash;<AsyncLogger name="org.springframework.web" level="info" includeLocation="true" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="DEBUG"/>
+            <appender-ref ref="INFO"/>
+            <appender-ref ref="WARN"/>
+            <appender-ref ref="ERROR"/>
+        </AsyncLogger>
+
+        <AsyncLogger name="org.example" level="info" includeLocation="true" additivity="true">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="DEBUG"/>
+            <appender-ref ref="INFO"/>
+            <appender-ref ref="WARN"/>
+            <appender-ref ref="ERROR"/>
+        </AsyncLogger>&ndash;&gt;
+
+        <AsyncRoot level="info" additivity="true">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="DEBUG"/>
+            <appender-ref ref="INFO"/>
+            <appender-ref ref="WARN"/>
+            <appender-ref ref="ERROR"/>
+        </AsyncRoot>
+    </loggers>
+</configuration>-->
+
+

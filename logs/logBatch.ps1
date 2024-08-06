@@ -1,0 +1,1 @@
+Get-Content -Path .\app.log -Wait -Encoding utf8
