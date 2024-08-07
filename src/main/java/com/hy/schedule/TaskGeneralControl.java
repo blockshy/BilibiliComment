@@ -67,6 +67,11 @@ public class TaskGeneralControl {
 
     private final static String dynamicListUrl = "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=";
 
+    public TaskGeneralControl() {
+        ((ThreadPoolTaskScheduler) taskScheduler).setPoolSize(100);
+        ((ThreadPoolTaskScheduler) taskScheduler).initialize();
+    }
+
     @PostConstruct
     void initTask(){
         ((ThreadPoolTaskScheduler) taskScheduler).initialize();
