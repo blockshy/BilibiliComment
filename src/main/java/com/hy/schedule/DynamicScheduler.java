@@ -8,13 +8,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -95,7 +92,7 @@ public class DynamicScheduler {
 
             task.setLastExecution(now);
             task.setNextExecution(nextExecutionLocal);
-            taskMapper.update(task);
+            taskMapper.updateExecution(task);
         };
 
         Trigger trigger = new CronTrigger(task.getCronExpression());

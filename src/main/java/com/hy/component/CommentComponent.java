@@ -3,8 +3,6 @@ package com.hy.component;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.hy.entity.ReplyList;
 import com.hy.mybatis.entity.Log;
 import com.hy.mybatis.entity.ScheduledTask;
@@ -22,6 +20,10 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.*;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -136,11 +138,10 @@ public class CommentComponent {
 
             TaskRequestInfo taskRequestInfo = taskRequestInfoMapper.getInfoById(scheduledTask.getRequestInfoId());
 
-
-
             JsonNode rootNode = null;
             String oid = null;
             try {
+                //由于不同类型的动态获取oid的规则并不一致，在此做判断
                 if("17".equals(scheduledTask.getParamsType())){
                     oid = scheduledTask.getMarkNo();
                 }else{
@@ -166,6 +167,9 @@ public class CommentComponent {
         if(StringUtils.isEmpty(scheduledTask.getUrl())){
             scheduledTaskMapper.updateNewCommentUrl(scheduledTask.getId(), resultUrl);
         }
+
+        //添加动态设置时间，根据创建任务时间变更任务执行频率，避免任务堆积
+        updateCron(scheduledTask);
 
         String httpResponse = HttpUtils.get(resultUrl, null);
 
@@ -279,6 +283,45 @@ public class CommentComponent {
         resultUrl = "https://api.bilibili.com/x/v2/reply/wbi/main?" + String.join("&", enResult);
 
         return resultUrl;
+    }
+
+    private void updateCron(ScheduledTask scheduledTask) {
+        LocalDateTime createdAt = scheduledTask.getCreatedAt();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime createdTime = createdAt.toInstant(ZoneOffset.UTC).atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+        Duration duration = Duration.between(createdTime, now);
+
+        // 根据不同的时间范围来设置 cron 表达式
+        String cron = null;
+        long seconds = duration.getSeconds();
+        if (seconds <= 3600) { // 小于或等于1小时
+            cron = "0/5 * * * * ?";  // 每5秒执行一次
+        } else if (seconds <= (3600 * 6)) { // 1到6小时
+            cron = "0/10 * * * * ?"; // 每10秒执行一次
+        } else if (seconds <= (3600 * 12)) { // 6到12小时
+            cron = "0/15 * * * * ?"; // 每15秒执行一次
+        } else if (seconds <= (3600 * 18)) { // 12到18小时
+            cron = "0/20 * * * * ?"; // 每20秒执行一次
+        } else if (seconds <= (3600 * 24)) { // 18到24小时
+            cron = "0/25 * * * * ?"; // 每25秒执行一次
+        } else if (seconds <= (3600 * 30)) { // 24到30小时
+            cron = "0/30 * * * * ?"; // 每30秒执行一次
+        } else if (seconds <= (3600 * 36)) { // 30到36小时
+            cron = "0/40 * * * * ?"; // 每40秒执行一次
+        } else if (seconds <= (3600 * 48)) { // 36到48小时
+            cron = "0 * * * * ?"; // 每1分钟执行一次
+        } else if (seconds <= (3600 * 72)) { // 48到72小时
+            cron = "0 0/5 * * * ?"; // 每5分钟执行一次
+        }
+        if(StringUtils.isEmpty(cron)){
+            //超出三天范围，停止任务
+            scheduledTaskMapper.disabledTask(scheduledTask);
+        }else{
+            //修改任务频率
+            scheduledTask.setCronExpression(cron);
+            scheduledTaskMapper.updateCron(scheduledTask);
+        }
     }
 
     String getMapValue(Map<String, String> map, String key){

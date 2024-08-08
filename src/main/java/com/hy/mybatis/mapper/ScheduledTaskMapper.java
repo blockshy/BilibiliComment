@@ -24,7 +24,15 @@ public interface ScheduledTaskMapper {
 
     // 更新任务
     @Update("UPDATE scheduled_tasks SET last_execution = #{lastExecution}, next_execution = #{nextExecution} WHERE id = #{id}")
-    int update(ScheduledTask task);
+    int updateExecution(ScheduledTask task);
+
+    // 更新任务
+    @Update("UPDATE scheduled_tasks SET enabled = 0 WHERE id = #{id}")
+    int disabledTask(ScheduledTask task);
+
+    // 更新任务
+    @Update("UPDATE scheduled_tasks SET cron_expression = #{cronExpression} WHERE id = #{id}")
+    int updateCron(ScheduledTask task);
 
     // 根据 ID 删除任务
     @Delete("DELETE FROM scheduled_tasks WHERE id = #{id}")

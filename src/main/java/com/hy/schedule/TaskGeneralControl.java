@@ -4,14 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.hy.common.EnabledEnum;
 import com.hy.component.CommentComponent;
-import com.hy.entity.ReplyList;
 import com.hy.mybatis.entity.*;
 import com.hy.mybatis.mapper.*;
-import com.hy.utils.GsonUtil;
 import com.hy.utils.HttpUtils;
 import com.jayway.jsonpath.JsonPath;
 import org.apache.logging.log4j.LogManager;
@@ -27,8 +23,6 @@ import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URLEncoder;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -392,7 +386,7 @@ public class TaskGeneralControl {
 
         scheduledTask.setLastExecution(now);
         scheduledTask.setNextExecution(nextExecutionLocal);
-        scheduledTaskMapper.update(scheduledTask);
+        scheduledTaskMapper.updateExecution(scheduledTask);
     }
 
 
