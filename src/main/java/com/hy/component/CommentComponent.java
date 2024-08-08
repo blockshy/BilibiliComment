@@ -122,6 +122,9 @@ public class CommentComponent {
             scheduledTaskMapper.updateNewCommentUrl(scheduledTask.getId(), resultUrl);
         }
 
+        //添加动态设置时间，根据创建任务时间变更任务执行频率，避免任务堆积
+        updateCron(scheduledTask);
+
         String tableName = "log_"+scheduledTask.getBvNo();
 
         saveReply(httpResponse, tableName, scheduledTask);
