@@ -136,17 +136,22 @@ public class CommentComponent {
 
             TaskRequestInfo taskRequestInfo = taskRequestInfoMapper.getInfoById(scheduledTask.getRequestInfoId());
 
-            //请求URL获取相应
-            String httpResult = HttpUtils.get(trendsUrl, taskRequestInfo.getCookie());
-            if(StringUtils.isEmpty(httpResult)){
-                return;
-            }
+
 
             JsonNode rootNode = null;
             String oid = null;
             try {
-                rootNode = objectMapper.readTree(httpResult);
-                oid = JsonPath.read(rootNode.toString(), "$.data.items[0].desc.origin.rid").toString();
+                if("17".equals(scheduledTask.getParamsType())){
+                    oid = scheduledTask.getMarkNo();
+                }else{
+                    //请求URL获取相应
+                    String httpResult = HttpUtils.get(trendsUrl, taskRequestInfo.getCookie());
+                    if(StringUtils.isEmpty(httpResult)){
+                        return;
+                    }
+                    rootNode = objectMapper.readTree(httpResult);
+                    oid = JsonPath.read(rootNode.toString(), "$.data.items[0].desc.origin.rid").toString();
+                }
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
