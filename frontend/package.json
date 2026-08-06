@@ -1,0 +1,53 @@
+{
+  "name": "bilibili-comment-admin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "api:generate": "openapi-typescript ../openapi/openapi.yaml -o src/api/generated.d.ts",
+    "api:check": "openapi-typescript ../openapi/openapi.yaml -o src/api/generated.d.ts --check",
+    "dev": "vite",
+    "dev:mock": "VITE_ENABLE_MOCKS=true VITE_APP_ENV=DEV vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint . --max-warnings=0",
+    "terms:check": "bash ../scripts/check-user-terminology.sh",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@radix-ui/react-dialog": "^1.1.19",
+    "@radix-ui/react-tabs": "^1.1.17",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-table": "^8.21.3",
+    "lucide-react": "^1.24.0",
+    "motion": "^12.42.2",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.81.0",
+    "react-router-dom": "^7.18.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.61.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^10.7.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "jsdom": "^29.1.1",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.64.0",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
+  }
+}

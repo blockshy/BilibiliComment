@@ -1,0 +1,968 @@
+openapi: 3.1.0
+info:
+  title: BilibiliComment Admin API
+  version: 0.1.0
+  description: 单管理员任务管理、评论观测与系统状态 API。所有 bigint ID 均按字符串传输。
+servers:
+  - url: /
+security:
+  - sessionCookie: []
+tags:
+  - name: Authentication
+  - name: Tasks
+  - name: Executions
+  - name: Comments
+  - name: Credentials
+  - name: System
+
+paths:
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      operationId: getCurrentUser
+      security: []
+      responses:
+        '200':
+          description: 当前管理员
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminUser'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      security:
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LoginRequest'}
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminUser'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logout
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      responses:
+        '204': {description: 已退出登录}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/task-capabilities:
+    get:
+      tags: [Tasks]
+      operationId: getTaskCapabilities
+      responses:
+        '200':
+          description: 可创建的任务组合
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/TaskCapability'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/v1/sources/resolve:
+    post:
+      tags: [Tasks]
+      operationId: resolveSource
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ResolveSourceRequest'}
+      responses:
+        '200':
+          description: 规范化后的来源
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SourceResolution'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /api/v1/tasks/summary:
+    get:
+      tags: [Tasks]
+      operationId: getDashboardSummary
+      responses:
+        '200':
+          description: 任务页摘要
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DashboardSummary'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/v1/tasks:
+    get:
+      tags: [Tasks]
+      operationId: listTasks
+      parameters:
+        - {name: query, in: query, schema: {type: string, maxLength: 255}}
+        - {name: sourceType, in: query, schema: {$ref: '#/components/schemas/SourceType'}}
+        - {name: collectionMode, in: query, schema: {$ref: '#/components/schemas/CollectionMode'}}
+        - {name: runtimeState, in: query, schema: {$ref: '#/components/schemas/RuntimeState'}}
+        - {name: health, in: query, schema: {$ref: '#/components/schemas/HealthStatus'}}
+        - {name: scope, in: query, schema: {$ref: '#/components/schemas/TaskScope'}}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 任务分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+    post:
+      tags: [Tasks]
+      operationId: createTask
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateTaskRequest'}
+      responses:
+        '201':
+          description: 已创建；相同幂等请求会返回原任务
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskDetail'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/tasks/{taskId}:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    get:
+      tags: [Tasks]
+      operationId: getTask
+      responses:
+        '200':
+          description: 任务详情
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskDetail'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/tasks/{taskId}/discovered-tasks:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    get:
+      tags: [Tasks]
+      operationId: listDiscoveredTasks
+      parameters:
+        - {name: query, in: query, schema: {type: string, maxLength: 255}}
+        - {name: sourceType, in: query, schema: {type: string, enum: [VIDEO, DYNAMIC]}}
+        - {name: runtimeState, in: query, schema: {$ref: '#/components/schemas/RuntimeState'}}
+        - {name: health, in: query, schema: {$ref: '#/components/schemas/HealthStatus'}}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 该 UP 主监控任务发现的内容及采集状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DiscoveredTaskPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+  /api/v1/tasks/{taskId}/pause:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    post:
+      tags: [Tasks]
+      operationId: pauseTask
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      responses:
+        '200':
+          description: 暂停后的任务
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskDetail'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/tasks/{taskId}/resume:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    post:
+      tags: [Tasks]
+      operationId: resumeTask
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      responses:
+        '200':
+          description: 恢复后的任务
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskDetail'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/tasks/{taskId}/run:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    post:
+      tags: [Executions]
+      operationId: runTask
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      responses:
+        '200':
+          description: 已排队的执行
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskExecution'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /api/v1/tasks/{taskId}/executions:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    get:
+      tags: [Executions]
+      operationId: listTaskExecutions
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 执行历史分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ExecutionPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/executions/{executionId}:
+    get:
+      tags: [Executions]
+      operationId: getExecution
+      parameters:
+        - {$ref: '#/components/parameters/ExecutionId'}
+      responses:
+        '200':
+          description: 单次执行详情
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskExecution'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/tasks/{taskId}/comments:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    get:
+      tags: [Executions]
+      operationId: listTaskComments
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 当前任务独立评论表的游标分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommentPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /api/v1/tasks/{taskId}/comments/search:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    post:
+      tags: [Comments]
+      operationId: searchTaskComments
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CommentSearchRequest'}
+      responses:
+        '200':
+          description: 固定快照内的筛选评论分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommentSearchPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '410': {$ref: '#/components/responses/Gone'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/tasks/{taskId}/comment-exports:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    post:
+      tags: [Comments]
+      operationId: createCommentExport
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateCommentExportRequest'}
+      responses:
+        '202':
+          description: 已创建异步导出任务；相同幂等请求返回原任务
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommentExportJob'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    get:
+      tags: [Comments]
+      operationId: listCommentExports
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: 当前任务最近的评论导出任务
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/CommentExportJob'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /api/v1/comment-exports/{exportId}:
+    parameters:
+      - {$ref: '#/components/parameters/ExportId'}
+    get:
+      tags: [Comments]
+      operationId: getCommentExport
+      responses:
+        '200':
+          description: 评论导出任务状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommentExportJob'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      tags: [Comments]
+      operationId: cancelCommentExport
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      responses:
+        '204': {description: 已请求取消；终态任务保持不变}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '410': {$ref: '#/components/responses/Gone'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /api/v1/comment-exports/{exportId}/download:
+    parameters:
+      - {$ref: '#/components/parameters/ExportId'}
+    get:
+      tags: [Comments]
+      operationId: downloadCommentExport
+      responses:
+        '200':
+          description: 解密后的 CSV 或 JSONL 文件；响应禁止缓存
+          headers:
+            Content-Disposition:
+              schema: {type: string}
+            Cache-Control:
+              schema: {type: string}
+          content:
+            text/csv:
+              schema: {type: string, format: binary}
+            application/x-ndjson:
+              schema: {type: string, format: binary}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '410': {$ref: '#/components/responses/Gone'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /api/v1/credentials:
+    get:
+      tags: [Credentials]
+      operationId: listCredentials
+      responses:
+        '200':
+          description: 脱敏凭据列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/CredentialProfile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/v1/credentials/{credentialId}/secret:
+    put:
+      tags: [Credentials]
+      operationId: replaceCredentialSecret
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      parameters:
+        - {$ref: '#/components/parameters/CredentialId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReplaceCredentialSecretRequest'}
+      responses:
+        '204': {description: 已保存 Cookie 原文，响应不返回 Cookie 内容}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+  /api/v1/credentials/{credentialId}/validate:
+    post:
+      tags: [Credentials]
+      operationId: validateCredential
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      parameters:
+        - {$ref: '#/components/parameters/CredentialId'}
+      responses:
+        '200':
+          description: 验证后的凭据状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CredentialProfile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamFailure'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/system/summary:
+    get:
+      tags: [System]
+      operationId: getSystemSummary
+      responses:
+        '200':
+          description: 脱敏运行摘要
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SystemSummary'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/v1/events:
+    get:
+      tags: [System]
+      operationId: subscribeEvents
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          schema: {$ref: '#/components/schemas/UnsignedId'}
+        - name: afterSequence
+          in: query
+          schema: {$ref: '#/components/schemas/UnsignedId'}
+      responses:
+        '200':
+          description: 持久化事件重放及实时 SSE；事件 data 结构为 LiveEvent
+          content:
+            text/event-stream:
+              schema: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-XSRF-TOKEN
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/PositiveId'}
+    ExecutionId:
+      name: executionId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/PositiveId'}
+    CredentialId:
+      name: credentialId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/PositiveId'}
+    ExportId:
+      name: exportId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/PositiveId'}
+    Cursor:
+      name: cursor
+      in: query
+      description: 服务端返回的不透明分页边界；客户端必须原样回传，不得解析或自行构造。
+      schema: {type: string, minLength: 1}
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 128}
+  responses:
+    BadRequest:
+      description: 请求格式错误
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    Unauthorized:
+      description: 未登录或凭据错误
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    Forbidden:
+      description: CSRF 失效或来源域名被禁止
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    NotFound:
+      description: 资源不存在
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    Conflict:
+      description: 重复任务、活动执行或幂等冲突
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    Gone:
+      description: 导出任务或文件已过期并被清理
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    Unprocessable:
+      description: 参数验证失败
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    RateLimited:
+      description: 请求过于频繁
+      headers:
+        Retry-After: {schema: {type: integer, minimum: 1}}
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    UpstreamFailure:
+      description: Bilibili 上游响应异常
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+    Unavailable:
+      description: 数据库或上游暂不可用
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/ApiProblem'}}}
+  schemas:
+    PositiveId: {type: string, pattern: '^[1-9][0-9]*$'}
+    UnsignedId: {type: string, pattern: '^[0-9]+$'}
+    SourceType: {type: string, enum: [VIDEO, DYNAMIC, CREATOR]}
+    TaskKind: {type: string, enum: [CONTENT_COMMENTS, CREATOR_WATCH]}
+    CollectionMode: {type: string, enum: [FOLLOW_ONLY, BACKFILL_ONLY]}
+    DesiredState: {type: string, enum: [ACTIVE, PAUSED]}
+    ScheduleType: {type: string, enum: [ADAPTIVE, CRON, MANUAL]}
+    RuntimeState: {type: string, enum: [IDLE, QUEUED, RUNNING, RETRY_WAIT, ERROR, COMPLETED]}
+    HealthStatus: {type: string, enum: [UNKNOWN, HEALTHY, DEGRADED, ERROR]}
+    ExecutionStatus: {type: string, enum: [QUEUED, RUNNING, RETRY_WAIT, SUCCEEDED, FAILED, CANCELLED]}
+    CommentReplyScope: {type: string, enum: [ALL, ROOT, REPLIES], default: ALL}
+    CommentSort: {type: string, enum: [CTIME_DESC, CTIME_ASC], default: CTIME_DESC}
+    CommentExportFormat: {type: string, enum: [CSV, JSONL]}
+    CommentExportColumn:
+      type: string
+      enum: [RPID, PARENT_RPID, MID, UNAME, AVATAR, CURRENT_LEVEL, CONTENT, CTIME]
+    CommentExportStatus:
+      type: string
+      enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED, EXPIRED]
+    ExecutionPhase:
+      type: [string, 'null']
+      enum: [RESOLVING_SOURCE, FETCHING_COMMENTS, PERSISTING_COMMENTS, WAITING_RATE_LIMIT, SCHEDULING_NEXT, null]
+    AdminUser:
+      type: object
+      required: [username, displayName]
+      properties:
+        username: {type: string}
+        displayName: {type: string}
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: {type: string, minLength: 1, maxLength: 128}
+        password: {type: string, minLength: 1, maxLength: 512, format: password, writeOnly: true}
+    TaskCapability:
+      type: object
+      required: [kind, sourceTypes, collectionModes]
+      properties:
+        kind: {$ref: '#/components/schemas/TaskKind'}
+        sourceTypes: {type: array, items: {$ref: '#/components/schemas/SourceType'}}
+        collectionModes: {type: array, items: {$ref: '#/components/schemas/CollectionMode'}}
+    ResolveSourceRequest:
+      type: object
+      required: [sourceType, input]
+      properties:
+        sourceType: {$ref: '#/components/schemas/SourceType'}
+        input: {type: string, minLength: 1, maxLength: 2048}
+    TaskSource:
+      type: object
+      required: [type, id, title]
+      properties:
+        type: {$ref: '#/components/schemas/SourceType'}
+        id: {type: string}
+        title: {type: string}
+    TaskOrigin:
+      type: string
+      enum: [MANUAL, DISCOVERED]
+    TaskRelationMode:
+      type: string
+      enum: [MANAGED, REFERENCED]
+    TaskScope:
+      type: string
+      enum: [PRIMARY, MANAGED, ALL]
+      default: PRIMARY
+    ParentTaskReference:
+      type: object
+      required: [taskId, name]
+      properties:
+        taskId: {$ref: '#/components/schemas/PositiveId'}
+        name: {type: string}
+    DiscoveredTaskSummary:
+      type: object
+      required: [total, neverStarted, queuedOrRunning, retryWaiting, errors, commentsInserted24h, newestDiscoveredAt]
+      properties:
+        total: {type: integer, minimum: 0}
+        neverStarted: {type: integer, minimum: 0}
+        queuedOrRunning: {type: integer, minimum: 0}
+        retryWaiting: {type: integer, minimum: 0}
+        errors: {type: integer, minimum: 0}
+        commentsInserted24h: {type: integer, minimum: 0}
+        newestDiscoveredAt: {type: [string, 'null'], format: date-time}
+    SourceResolution:
+      type: object
+      required: [source, accessible, message]
+      properties:
+        source: {$ref: '#/components/schemas/TaskSource'}
+        accessible: {type: boolean}
+        message: {type: [string, 'null']}
+    TaskSummary:
+      type: object
+      required: [id, version, name, kind, source, collectionMode, desiredState, runtimeState, health, scheduleLabel, credentialName, lastSuccessAt, nextRunAt, latestInsertedCount, updatedAt, origin, relationMode, parentTask, discoveredSummary]
+      properties:
+        id: {$ref: '#/components/schemas/PositiveId'}
+        version: {type: integer, minimum: 0}
+        name: {type: string}
+        kind: {$ref: '#/components/schemas/TaskKind'}
+        source: {$ref: '#/components/schemas/TaskSource'}
+        collectionMode: {$ref: '#/components/schemas/CollectionMode'}
+        desiredState: {$ref: '#/components/schemas/DesiredState'}
+        runtimeState: {$ref: '#/components/schemas/RuntimeState'}
+        health: {$ref: '#/components/schemas/HealthStatus'}
+        scheduleLabel: {type: string}
+        credentialName: {type: string}
+        lastSuccessAt: {type: [string, 'null'], format: date-time}
+        nextRunAt: {type: [string, 'null'], format: date-time}
+        latestInsertedCount: {type: integer, minimum: 0}
+        updatedAt: {type: string, format: date-time}
+        origin: {$ref: '#/components/schemas/TaskOrigin'}
+        relationMode:
+          oneOf:
+            - {$ref: '#/components/schemas/TaskRelationMode'}
+            - {type: 'null'}
+        parentTask:
+          oneOf:
+            - {$ref: '#/components/schemas/ParentTaskReference'}
+            - {type: 'null'}
+        discoveredSummary:
+          oneOf:
+            - {$ref: '#/components/schemas/DiscoveredTaskSummary'}
+            - {type: 'null'}
+    TaskDetail:
+      allOf:
+        - {$ref: '#/components/schemas/TaskSummary'}
+        - type: object
+          required: [remark, createdAt, watchedContentTypes]
+          properties:
+            remark: {type: [string, 'null']}
+            createdAt: {type: string, format: date-time}
+            watchedContentTypes:
+              type: array
+              items: {type: string, enum: [VIDEO, DYNAMIC]}
+    DiscoveredTaskItem:
+      type: object
+      required: [task, commentsTotal, commentsInserted24h, firstDiscoveredAt, lastDiscoveredAt, firstDiscoveredExecutionId, lastDiscoveredExecutionId]
+      properties:
+        task: {$ref: '#/components/schemas/TaskSummary'}
+        commentsTotal: {type: integer, minimum: 0}
+        commentsInserted24h: {type: integer, minimum: 0}
+        firstDiscoveredAt: {type: string, format: date-time}
+        lastDiscoveredAt: {type: string, format: date-time}
+        firstDiscoveredExecutionId:
+          oneOf:
+            - {$ref: '#/components/schemas/PositiveId'}
+            - {type: 'null'}
+        lastDiscoveredExecutionId:
+          oneOf:
+            - {$ref: '#/components/schemas/PositiveId'}
+            - {type: 'null'}
+    TaskSourceInput:
+      type: object
+      required: [type, input]
+      properties:
+        type: {$ref: '#/components/schemas/SourceType'}
+        input: {type: string, minLength: 1, maxLength: 2048}
+    TaskScheduleInput:
+      type: object
+      required: [strategy, zoneId]
+      properties:
+        strategy: {$ref: '#/components/schemas/ScheduleType'}
+        cronExpression: {type: [string, 'null']}
+        zoneId: {type: string, const: Asia/Shanghai}
+    CreateTaskRequest:
+      type: object
+      required: [name, kind, source, collectionMode, credentialProfileId, schedule, desiredState, startNow]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 255}
+        kind: {$ref: '#/components/schemas/TaskKind'}
+        source: {$ref: '#/components/schemas/TaskSourceInput'}
+        collectionMode: {$ref: '#/components/schemas/CollectionMode'}
+        credentialProfileId: {$ref: '#/components/schemas/PositiveId'}
+        schedule: {$ref: '#/components/schemas/TaskScheduleInput'}
+        watchedContentTypes:
+          type: array
+          uniqueItems: true
+          items: {type: string, enum: [VIDEO, DYNAMIC]}
+        desiredState: {$ref: '#/components/schemas/DesiredState'}
+        startNow: {type: boolean}
+        remark: {type: [string, 'null'], maxLength: 2000}
+    TaskExecution:
+      type: object
+      required: [id, taskId, trigger, status, phase, pagesFetched, commentsDiscovered, commentsInserted, duplicatesSkipped, retryCount, cursor, errorSummary, startedAt, finishedAt, lastHeartbeatAt]
+      properties:
+        id: {$ref: '#/components/schemas/PositiveId'}
+        taskId: {$ref: '#/components/schemas/PositiveId'}
+        trigger: {type: string, enum: [SCHEDULED, MANUAL, DISCOVERED]}
+        status: {$ref: '#/components/schemas/ExecutionStatus'}
+        phase: {$ref: '#/components/schemas/ExecutionPhase'}
+        pagesFetched: {type: integer, minimum: 0}
+        commentsDiscovered: {type: integer, minimum: 0}
+        commentsInserted: {type: integer, minimum: 0}
+        duplicatesSkipped: {type: integer, minimum: 0}
+        retryCount: {type: integer, minimum: 0}
+        cursor: {type: [string, 'null']}
+        errorSummary: {type: [string, 'null']}
+        startedAt: {type: [string, 'null'], format: date-time}
+        finishedAt: {type: [string, 'null'], format: date-time}
+        lastHeartbeatAt: {type: [string, 'null'], format: date-time}
+    Comment:
+      type: object
+      required: [id, rpid, parentRpid, mid, uname, avatar, currentLevel, content, ctime]
+      properties:
+        id: {$ref: '#/components/schemas/PositiveId'}
+        rpid: {$ref: '#/components/schemas/PositiveId'}
+        parentRpid: {oneOf: [{$ref: '#/components/schemas/PositiveId'}, {type: 'null'}]}
+        mid: {type: string}
+        uname: {type: [string, 'null']}
+        avatar: {type: [string, 'null']}
+        currentLevel: {type: [integer, 'null']}
+        content: {type: [string, 'null']}
+        ctime: {type: string, format: date-time}
+    CommentFilter:
+      type: object
+      properties:
+        keyword: {type: [string, 'null'], maxLength: 200}
+        mid: {type: [string, 'null'], pattern: '^[1-9][0-9]{0,31}$'}
+        uname: {type: [string, 'null'], maxLength: 255}
+        levelMin: {type: [integer, 'null'], minimum: 0, maximum: 6}
+        levelMax: {type: [integer, 'null'], minimum: 0, maximum: 6}
+        unknownLevelOnly: {type: boolean, default: false}
+        ctimeFrom: {type: [string, 'null'], format: date-time}
+        ctimeBefore: {type: [string, 'null'], format: date-time}
+        rpid: {oneOf: [{$ref: '#/components/schemas/PositiveId'}, {type: 'null'}]}
+        parentRpid: {oneOf: [{$ref: '#/components/schemas/PositiveId'}, {type: 'null'}]}
+        replyScope: {$ref: '#/components/schemas/CommentReplyScope'}
+    CommentSearchRequest:
+      type: object
+      required: [filter]
+      properties:
+        filter: {$ref: '#/components/schemas/CommentFilter'}
+        sort: {$ref: '#/components/schemas/CommentSort'}
+        cursor: {type: [string, 'null'], maxLength: 2048}
+        limit: {type: integer, minimum: 1, maximum: 100, default: 50}
+        includeTotal: {type: boolean, default: false}
+    CommentSearchPage:
+      type: object
+      required: [items, nextCursor, total]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Comment'}
+        nextCursor: {type: [string, 'null']}
+        total: {type: [integer, 'null'], minimum: 0}
+    CreateCommentExportRequest:
+      type: object
+      required: [filter, format]
+      properties:
+        filter: {$ref: '#/components/schemas/CommentFilter'}
+        sort: {$ref: '#/components/schemas/CommentSort'}
+        format: {$ref: '#/components/schemas/CommentExportFormat'}
+        columns:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CommentExportColumn'}
+    CommentExportJob:
+      type: object
+      required: [id, taskId, status, format, columns, rowsWritten, bytesWritten, downloadReady, errorCode, errorSummary, createdAt, startedAt, finishedAt, expiresAt]
+      properties:
+        id: {$ref: '#/components/schemas/PositiveId'}
+        taskId: {$ref: '#/components/schemas/PositiveId'}
+        status: {$ref: '#/components/schemas/CommentExportStatus'}
+        format: {$ref: '#/components/schemas/CommentExportFormat'}
+        columns:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CommentExportColumn'}
+        rowsWritten: {type: integer, minimum: 0}
+        bytesWritten: {type: integer, minimum: 0}
+        downloadReady: {type: boolean}
+        errorCode: {type: [string, 'null']}
+        errorSummary: {type: [string, 'null']}
+        createdAt: {type: string, format: date-time}
+        startedAt: {type: [string, 'null'], format: date-time}
+        finishedAt: {type: [string, 'null'], format: date-time}
+        expiresAt: {type: string, format: date-time}
+    CredentialProfile:
+      type: object
+      required: [id, name, enabled, valid, lastValidatedAt]
+      properties:
+        id: {$ref: '#/components/schemas/PositiveId'}
+        name: {type: string}
+        enabled: {type: boolean}
+        valid: {type: boolean}
+        lastValidatedAt: {type: [string, 'null'], format: date-time}
+    ReplaceCredentialSecretRequest:
+      type: object
+      required: [secret]
+      properties:
+        secret: {type: string, minLength: 1, maxLength: 16384, writeOnly: true}
+    DashboardSummary:
+      type: object
+      required: [activeTasks, primaryActiveTasks, managedActiveTasks, runningTasks, retryWaitingTasks, commentsInserted24h, recentFailures]
+      properties:
+        activeTasks: {type: integer, minimum: 0}
+        primaryActiveTasks: {type: integer, minimum: 0}
+        managedActiveTasks: {type: integer, minimum: 0}
+        runningTasks: {type: integer, minimum: 0}
+        retryWaitingTasks: {type: integer, minimum: 0}
+        commentsInserted24h: {type: integer, minimum: 0}
+        recentFailures: {type: integer, minimum: 0}
+    SystemSummary:
+      type: object
+      required: [api, database, bilibili, schedulerEnabled, schedulerActive, workerActive, workerPoolSize, workerQueueSize, sseConnections, recentFailureCount, rateLimitedCount, measuredAt]
+      properties:
+        api: {type: string, enum: [UP, DEGRADED, DOWN]}
+        database: {type: string, enum: [UP, DOWN]}
+        bilibili: {type: string, enum: [UP, DEGRADED, DOWN]}
+        schedulerEnabled: {type: boolean}
+        schedulerActive: {type: integer, minimum: 0}
+        workerActive: {type: integer, minimum: 0}
+        workerPoolSize: {type: integer, minimum: 0}
+        workerQueueSize: {type: integer, minimum: 0}
+        sseConnections: {type: integer, minimum: 0}
+        recentFailureCount: {type: integer, minimum: 0}
+        rateLimitedCount: {type: integer, minimum: 0}
+        measuredAt: {type: string, format: date-time}
+    LiveEvent:
+      type: object
+      required: [eventId, type, occurredAt, sequence, taskId, executionId, data]
+      properties:
+        eventId: {$ref: '#/components/schemas/UnsignedId'}
+        type: {type: string, enum: [task.updated, execution.updated, comments.appended, system.updated, heartbeat]}
+        occurredAt: {type: string, format: date-time}
+        sequence: {type: integer, minimum: 0}
+        taskId: {oneOf: [{$ref: '#/components/schemas/PositiveId'}, {type: 'null'}]}
+        executionId: {oneOf: [{$ref: '#/components/schemas/PositiveId'}, {type: 'null'}]}
+        data: {type: object, additionalProperties: true}
+    TaskPage:
+      type: object
+      required: [items, nextCursor, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/TaskSummary'}}
+        nextCursor:
+          type: [string, 'null']
+          description: 下一页的不透明任务边界；为空表示没有下一页。
+        total: {type: integer, minimum: 0}
+    DiscoveredTaskPage:
+      type: object
+      required: [items, nextCursor, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/DiscoveredTaskItem'}}
+        nextCursor: {type: [string, 'null']}
+        total: {type: integer, minimum: 0}
+    ExecutionPage:
+      type: object
+      required: [items, nextCursor, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/TaskExecution'}}
+        nextCursor: {type: [string, 'null']}
+        total: {type: integer, minimum: 0}
+    CommentPage:
+      type: object
+      required: [items, nextCursor, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Comment'}}
+        nextCursor: {type: [string, 'null']}
+        total: {type: integer, minimum: 0}
+    ApiProblem:
+      type: object
+      required: [status, code, detail]
+      properties:
+        type: {type: [string, 'null'], format: uri}
+        title: {type: [string, 'null']}
+        status: {type: integer, minimum: 400, maximum: 599}
+        code: {type: string}
+        detail: {type: string}
+        traceId: {type: [string, 'null']}
+        fieldErrors: {type: object, additionalProperties: {type: string}}
+        existingTaskId: {oneOf: [{$ref: '#/components/schemas/PositiveId'}, {type: 'null'}]}

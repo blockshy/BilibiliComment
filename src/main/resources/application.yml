@@ -1,26 +1,121 @@
-# 配置端口号
 server:
-  port: 8111
+  port: ${SERVER_PORT:8111}
+  shutdown: graceful
+  forward-headers-strategy: framework
+  tomcat:
+    threads:
+      max: ${SERVER_MAX_THREADS:50}
+      min-spare: ${SERVER_MIN_SPARE_THREADS:4}
+  servlet:
+    session:
+      timeout: 8h
+      cookie:
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:true}
+        same-site: strict
+
 spring:
-  # 配置数据源
+  application:
+    name: bilibili-comment
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: 123456
-    url: jdbc:mysql://localhost:3306/bilibili_comment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-  jackson:
-    # 设置显示格式
-    date-format: yyyy-MM-dd HH:mm:ss
-    # 设置时区
-    time-zone: GMT+8
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:bilibili_comment_dev}?currentSchema=app&ApplicationName=${APP_ENV:local}-bilibili-comment
+    username: ${DB_APP_USERNAME:}
+    password: ${DB_APP_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      connection-timeout: 5000
+      validation-timeout: 3000
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    schemas: app,comment_data
+    default-schema: app
+    create-schemas: true
+    clean-disabled: true
+    validate-on-migrate: true
+    baseline-on-migrate: false
+    user: ${DB_MIGRATOR_USERNAME:${DB_APP_USERNAME:}}
+    password: ${DB_MIGRATOR_PASSWORD:${DB_APP_PASSWORD:}}
+  sql:
+    init:
+      mode: never
+  task:
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: 20s
+
 mybatis:
   configuration:
-    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
     map-underscore-to-camel-case: true
+    default-fetch-size: 100
+  type-aliases-package: com.hy.bilicomment.infrastructure.persistence.entity
 
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
-        # “*”号代表启用所有的监控端点，可以单独启用，例如，`health`，`info`，`metrics`等
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+
+app:
+  environment: ${APP_ENV:local}
+  public-base-url: ${PUBLIC_BASE_URL:http://localhost:5173}
+  admin:
+    username: ${ADMIN_USERNAME:}
+    password-hash: ${ADMIN_PASSWORD_HASH:}
+  crypto:
+    credential-key: ${CREDENTIAL_ENCRYPTION_KEY:}
+  scheduler:
+    enabled: ${SCHEDULER_ENABLED:true}
+    reconcile-delay: ${SCHEDULER_RECONCILE_DELAY:30s}
+    pool-size: ${SCHEDULER_POOL_SIZE:2}
+    worker-core-size: ${WORKER_CORE_SIZE:2}
+    worker-max-size: ${WORKER_MAX_SIZE:2}
+    worker-queue-capacity: ${WORKER_QUEUE_CAPACITY:20}
+    backfill-concurrency: ${BACKFILL_CONCURRENCY:1}
+    backfill-queue-capacity: ${BACKFILL_QUEUE_CAPACITY:3}
+    execution-dispatch-delay: ${EXECUTION_DISPATCH_DELAY:2s}
+    retry-recovery-delay: ${RETRY_RECOVERY_DELAY:2s}
+    execution-lease-duration: ${EXECUTION_LEASE_DURATION:2m}
+    execution-heartbeat-delay: ${EXECUTION_HEARTBEAT_DELAY:20s}
+    execution-recovery-batch-size: ${EXECUTION_RECOVERY_BATCH_SIZE:100}
+  bilibili:
+    connect-timeout: ${BILIBILI_CONNECT_TIMEOUT:5s}
+    response-timeout: ${BILIBILI_RESPONSE_TIMEOUT:20s}
+    maximum-attempts: ${BILIBILI_MAXIMUM_ATTEMPTS:3}
+    maximum-execution-retries: ${BILIBILI_MAXIMUM_EXECUTION_RETRIES:2}
+    execution-retry-base-delay: ${BILIBILI_EXECUTION_RETRY_BASE_DELAY:30s}
+    minimum-request-interval: ${BILIBILI_MINIMUM_REQUEST_INTERVAL:500ms}
+    maximum-concurrent-requests-per-credential: ${BILIBILI_MAXIMUM_CONCURRENT_REQUESTS_PER_CREDENTIAL:1}
+    backfill-page-limit: ${BILIBILI_BACKFILL_PAGE_LIMIT:10000}
+    user-agent: ${BILIBILI_USER_AGENT:BilibiliComment/0.1}
+  events:
+    emitter-timeout: ${SSE_EMITTER_TIMEOUT:30m}
+    heartbeat-delay: ${SSE_HEARTBEAT_DELAY:25s}
+  cursor:
+    signing-key: ${CURSOR_SIGNING_KEY:}
+    ttl: ${CURSOR_TTL:2h}
+  exports:
+    enabled: ${COMMENT_EXPORT_ENABLED:true}
+    directory: ${EXPORT_STORAGE_PATH:/tmp/bilibili-comment-exports}
+    encryption-key: ${EXPORT_ENCRYPTION_KEY:}
+    poll-delay: ${COMMENT_EXPORT_POLL_DELAY:2s}
+    ttl: ${COMMENT_EXPORT_TTL:24h}
+    maximum-runtime: ${COMMENT_EXPORT_MAXIMUM_RUNTIME:10m}
+    maximum-queued: ${COMMENT_EXPORT_MAXIMUM_QUEUED:3}
+    maximum-rows: ${COMMENT_EXPORT_MAXIMUM_ROWS:250000}
+    maximum-bytes: ${COMMENT_EXPORT_MAXIMUM_BYTES:268435456}
+    chunk-size: ${COMMENT_EXPORT_CHUNK_SIZE:1000}

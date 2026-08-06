@@ -35,3 +35,37 @@ build/
 ### user ###
 *.log
 
+### Local contributor guidance and development documents ###
+/AGENTS.md
+/dev/
+
+### Secrets and private configuration overrides ###
+.env
+.env.*
+!.env.example
+.envrc
+**/.env
+**/.env.*
+!**/.env.example
+**/.envrc
+/secrets/
+**/secrets/
+/src/main/resources/application-local.yml
+/src/main/resources/application-*-local.yml
+/src/main/resources/application-local.yaml
+/src/main/resources/application-*-local.yaml
+/.local/
+docker-compose.override.yml
+docker-compose.override.yaml
+compose.override.yml
+compose.override.yaml
+**/docker-compose.override.yml
+**/docker-compose.override.yaml
+**/compose.override.yml
+**/compose.override.yaml
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
