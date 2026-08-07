@@ -8,7 +8,9 @@ WORKDIR /workspace
 COPY frontend/package.json frontend/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY frontend ./
-RUN npm run lint && npm test && npm run build
+# The release entrypoint runs API, lint, unit and E2E gates before this image
+# build. Keep the Dockerfile focused on producing the hermetic runtime asset.
+RUN npm run build
 
 FROM nginx:1.30.1@sha256:842a3f99afd73859b5c647f8be6f0000849be286674e30d9dbcf7a6902a69487 AS runtime
 
